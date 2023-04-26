@@ -118,4 +118,79 @@ public class ExecutionTest {
         pointcut.setExpression("execution(* hello.aop..*.*(..))"); //hello.aop.. -> aop 포함 하위패키지까지 모두포함
         assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
     }
+
+    @Test
+    void typeExactMatch() {
+        pointcut.setExpression("execution(* hello.aop.member.MemberServiceImpl.*(..))");
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+    }
+
+    @Test
+    void typeMatchSuperType() {
+        pointcut.setExpression("execution(* hello.aop.member.MemberService.*(..))"); //부모 타입 허용
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+    }
+
+    @Test
+    void typeMatchInternal() throws NoSuchMethodException {
+        pointcut.setExpression("execution(* hello.aop.member.MemberServiceImpl.*(..))"); //부모 타입은 허용
+        Method internalMethod = MemberServiceImpl.class.getMethod("internal", String.class);  // 오버라이딩이 아닌 메소드.
+        assertThat(pointcut.matches(internalMethod, MemberServiceImpl.class)).isTrue(); // 부모타입도 허용이고 MemberServiceImpl 자체가 대상이라 true
+    }
+
+    @Test
+    void typeMatchNoSuperTypeMethodFalse() throws NoSuchMethodException {
+        pointcut.setExpression("execution(* hello.aop.member.MemberService.*(..))"); //부모 타입은 허용. 부모타입의 메소드까지만 적용이된다.
+        Method internalMethod = MemberServiceImpl.class.getMethod("internal", String.class); // 오버라이딩이 아닌 메소드.
+        assertThat(pointcut.matches(internalMethod, MemberServiceImpl.class)).isFalse(); // MemberService(인터페이스) 대상이어도 부모타입은 허용, 하지만 오버라이딩 메소드가 아닌것은 적용x. false
+    }
+
+    //String 타입의 파라미터 허용
+    // (String)
+    @Test
+    void argsMatch() {
+        pointcut.setExpression("execution(* *(String))");
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+    }
+
+    // 파라미터가 없어야 함.
+    // ()
+    @Test
+    void argsMatchNoArgs() {
+        pointcut.setExpression("execution(* *())");
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isFalse();  // hello메소드가 파라미터가 String 이기 때문.
+    }
+
+    // 정확히 하나의 파라미터 허용, 모든 타입 허용
+    // (Xxx)
+    @Test
+    void argsMatchStar() {
+        pointcut.setExpression("execution(* *(*))");
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+    }
+
+    // 숫자와 무관하게 모든 파라미터, 모든 타입 허용
+    // (), (Xxx), (Xxx, Xxx)
+    @Test
+    void argsMatchAll() {
+        pointcut.setExpression("execution(* *(..))");
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+    }
+
+    // String 타입으로 시작하고,  숫자와 무관하게 모든 파라미터, 모든 타입 허용
+    // (String), (String, Xxx), (String, Xxx, Xxx)
+    @Test
+    void argsMatchComplex() {
+        pointcut.setExpression("execution(* *(String, ..))");
+        assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+    }
+
+    //execution 파라미터 매칭 규칙은 다음과 같다.
+    //(String) : 정확하게 String 타입 파라미터
+    //() : 파라미터가 없어야 한다.
+    //(*) : 정확히 하나의 파라미터, 단 모든 타입을 허용한다.
+    //(*, *) : 정확히 두 개의 파라미터, 단 모든 타입을 허용한다.
+    //(..) : 숫자와 무관하게 모든 파라미터, 모든 타입을 허용한다. 참고로 파라미터가 없어도 된다. 0..* 로 이해하면 된다.
+    //(String, ..) : String 타입으로 시작해야 한다. 숫자와 무관하게 모든 파라미터, 모든 타입을 허용한다.
+    //예) (String) , (String, Xxx) , (String, Xxx, Xxx) 허용
 }
